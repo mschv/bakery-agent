@@ -172,9 +172,9 @@ def calculate_recipe_margins() -> list[dict]:
                 "id": recipe.get("id"),
                 "recipe_name": recipe["name"],
                 "cost": round(cost, 2),
-                "selling_price": selling_price,
+                "selling_price": round(selling_price, 2),
                 "profit": round(profit, 2),
-                "margin_pct": f"{round(margin_pct, 1)}%",
+                "margin_pct": f"{round(margin_pct, 2)}%",
             }
         )
     return margins
@@ -209,7 +209,7 @@ def log_inventory_usage(item_id: str, qty: float, reason: str = "waste") -> str:
             "cost": round(qty * item_data.get("unit_cost", 0.0), 2),
         },
     )
-    return f"Successfully deducted {qty} from {item_id} ({reason}). New balance: {new_qty}"
+    return f"Successfully deducted {qty:.2f} from {item_id} ({reason}). New balance: {new_qty:.2f}"
 
 
 @_handle_tool_errors
@@ -247,7 +247,7 @@ def add_ingredient(
         "add_ingredient",
         {"item_id": doc_id, "name": name, "unit": unit, "unit_cost": unit_cost, "initial_stock_qty": initial_stock_qty},
     )
-    return f"Added new ingredient '{name}' ({doc_id}) — {initial_stock_qty} {unit} in stock at ${unit_cost}/{unit}."
+    return f"Added new ingredient '{name}' ({doc_id}) — {initial_stock_qty:.2f} {unit} in stock at ${unit_cost:.2f}/{unit}."
 
 
 @_handle_tool_errors
@@ -283,8 +283,8 @@ def restock_ingredient(item_id: str, qty: float, new_expiration_date: str = None
     )
 
     if new_expiration_date:
-        return f"Restocked {qty} of {item_id}. New balance: {new_qty}. Expiration date updated to {new_expiration_date}."
-    return f"Restocked {qty} of {item_id}. New balance: {new_qty}."
+        return f"Restocked {qty:.2f} of {item_id}. New balance: {new_qty:.2f}. Expiration date updated to {new_expiration_date}."
+    return f"Restocked {qty:.2f} of {item_id}. New balance: {new_qty:.2f}."
 
 
 @_handle_tool_errors
@@ -329,7 +329,7 @@ def add_recipe(name: str, selling_price: float, ingredients: list[dict]) -> str:
         {"id": doc_id, "name": name, "selling_price": selling_price, "ingredients": resolved_ingredients}
     )
     _log_event("add_recipe", {"recipe_id": doc_id, "name": name, "selling_price": selling_price})
-    return f"Added new recipe '{name}' ({doc_id}) at ${selling_price}."
+    return f"Added new recipe '{name}' ({doc_id}) at ${selling_price:.2f}."
 
 
 @_handle_tool_errors
@@ -358,7 +358,7 @@ def bake_recipe(recipe_id: str, quantity: float = 1) -> str:
 
         if current_qty < needed_qty:
             shortages.append(
-                f"{ing_id} (need {needed_qty}, have {current_qty})"
+                f"{ing_id} (need {needed_qty:.2f}, have {current_qty:.2f})"
             )
         needed[ing_id] = (needed_qty, current_qty, unit_cost)
 
@@ -373,7 +373,7 @@ def bake_recipe(recipe_id: str, quantity: float = 1) -> str:
     for ing_id, (needed_qty, current_qty, unit_cost) in needed.items():
         new_qty = current_qty - needed_qty
         db.collection("ingredients").document(ing_id).update({"stock_qty": new_qty})
-        deducted.append(f"{needed_qty} {ing_id}")
+        deducted.append(f"{needed_qty:.2f} {ing_id}")
         total_cost += needed_qty * unit_cost
 
     _log_event(
@@ -453,7 +453,7 @@ def record_custom_order(
     summary = f"Recorded order: {quantity}x {item} for {customer}"
     if due_date:
         summary += f", due {due_date}"
-    summary += f", ${price}." if price is not None else " (price not yet set)."
+    summary += f", ${price:.2f}." if price is not None else " (price not yet set)."
     return summary
 
 
@@ -503,7 +503,7 @@ def update_order_status(query: str, new_status: str, price: float = None) -> str
         )
         return (
             f"Order for {order.get('customer')} ({order.get('item')}) marked paid — "
-            f"${final_price} recorded as revenue."
+            f"${final_price:.2f} recorded as revenue."
         )
 
     doc.reference.update(
@@ -548,7 +548,7 @@ def record_sale(item: str, quantity: float, revenue: float) -> str:
             "order_id": None,
         },
     )
-    return f"Recorded sale: {quantity}x {item_label} for ${revenue}."
+    return f"Recorded sale: {quantity}x {item_label} for ${revenue:.2f}."
 
 
 @_handle_tool_errors
@@ -558,7 +558,7 @@ def record_expense(description: str, amount: float) -> str:
         return "Error: amount must be a positive number."
 
     _log_event("expense", {"description": description, "amount": amount})
-    return f"Recorded expense: {description} — ${amount}."
+    return f"Recorded expense: {description} — ${amount:.2f}."
 
 
 @_handle_tool_errors

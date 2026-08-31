@@ -32,14 +32,14 @@ def build_morning_briefing(inv_data: dict) -> str:
     lines = ["Good morning! ☀️ Here's where things stand:"]
     if expiring:
         items = "; ".join(
-            f"**{item.get('stock_qty')} {item.get('unit')} of {item.get('name')}** "
+            f"**{item.get('stock_qty', 0):.2f} {item.get('unit')} of {item.get('name')}** "
             f"(expires {item.get('expiration_date')})"
             for item in expiring
         )
         lines.append(f"- Expiring soon: {items}")
     if low_stock:
         items = "; ".join(
-            f"**{item.get('name')}** ({item.get('stock_qty')} {item.get('unit')} left)"
+            f"**{item.get('name')}** ({item.get('stock_qty', 0):.2f} {item.get('unit')} left)"
             for item in low_stock
         )
         lines.append(f"- Running low: {items}")
@@ -179,7 +179,7 @@ with right_col:
     if isinstance(open_orders, list) and open_orders:
         for order in open_orders:
             due = order.get("due_date") or "no due date"
-            price = f"${order['price']}" if order.get("price") is not None else "price TBD"
+            price = f"${order['price']:.2f}" if order.get("price") is not None else "price TBD"
             status = order.get("status", "pending")
             st.write(
                 f"**{order.get('customer', '?')}** — {order.get('quantity', 1)}x "
@@ -196,11 +196,11 @@ with right_col:
     ar = get_accounts_receivable()
     if isinstance(summary, dict) and "revenue" in summary:
         m1, m2, m3 = st.columns(3)
-        m1.metric("Revenue", f"${summary['revenue']}")
-        m2.metric("Costs", f"${summary['total_cost']}")
-        m3.metric("Net", f"${summary['net']}")
+        m1.metric("Revenue", f"${summary['revenue']:.2f}")
+        m2.metric("Costs", f"${summary['total_cost']:.2f}")
+        m3.metric("Net", f"${summary['net']:.2f}")
         owed = ar.get("total_owed", 0) if isinstance(ar, dict) else 0
-        st.caption(f"{summary.get('sales_count', 0)} sales this week · ${owed} owed from open orders")
+        st.caption(f"{summary.get('sales_count', 0)} sales this week · ${owed:.2f} owed from open orders")
     else:
         st.caption("Financial summary unavailable.")
 
@@ -213,13 +213,13 @@ with right_col:
 
     for item in inv_data.get("expiring_soon", []):
         st.error(
-            f"⚠️ **{item['name']}**: {item['stock_qty']} {item['unit']} (Expires: {item['expiration_date']})"
+            f"⚠️ **{item['name']}**: {item['stock_qty']:.2f} {item['unit']} (Expires: {item['expiration_date']})"
         )
 
     for item in inv_data.get("all_ingredients", []):
         if item.get("id") in expiring_ids:
             continue
         if item.get("id") in low_stock_ids:
-            st.warning(f"🔻 **{item['name']}**: {item['stock_qty']} {item['unit']} (below reorder threshold)")
+            st.warning(f"🔻 **{item['name']}**: {item['stock_qty']:.2f} {item['unit']} (below reorder threshold)")
         else:
-            st.write(f"• **{item['name']}**: {item['stock_qty']} {item['unit']}")
+            st.write(f"• **{item['name']}**: {item['stock_qty']:.2f} {item['unit']}")
