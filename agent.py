@@ -289,7 +289,7 @@ def restock_ingredient(item_id: str, qty: float, new_expiration_date: str = None
 
 @_handle_tool_errors
 def add_recipe(name: str, selling_price: float, ingredients: list[dict]) -> str:
-    """Adds a brand-new recipe. Use this when the baker describes a product/recipe that doesn't exist yet. ingredients is a list like [{"item": "flour", "qty": 0.5}, {"item": "eggs", "qty": 2}] — item names are resolved against existing tracked ingredients the same way other tools do. Every ingredient must already be tracked for cost/margin calculations to be accurate — if one isn't found, this returns an error telling you which; use add_ingredient for those first, then retry."""
+    """Adds a brand-new recipe. Use this when the baker describes a product/recipe that doesn't exist yet. ingredients is a list like [{"item": "flour", "qty": 0.5, "unit": "kg"}, {"item": "eggs", "qty": 2, "unit": "dozen"}] — item names are resolved against existing tracked ingredients the same way other tools do. ALWAYS include "unit" for each ingredient (whatever unit the source used — cups, tbsp, kg, whatever the baker said or the photo/recipe showed) even though it's optional in the signature: without it, a quantity in the wrong unit (e.g. "2 cups" copied as qty=2 into an ingredient tracked in kg) would be silently stored as if it were already in the tracked unit, which is wrong by a large factor. If the unit you have doesn't match how the ingredient is tracked, this call will tell you the tracked unit so you can convert or ask the baker — do not guess a conversion yourself unless you're confident. Every ingredient must already be tracked for cost/margin calculations to be accurate — if one isn't found, this returns an error telling you which; use add_ingredient for those first, then retry."""
     if selling_price < 0:
         return "Error: selling_price can't be negative."
 
@@ -302,16 +302,26 @@ def add_recipe(name: str, selling_price: float, ingredients: list[dict]) -> str:
     for ing in ingredients:
         item_query = ing.get("item")
         qty = ing.get("qty")
+        source_unit = ing.get("unit")
         ing_id, ing_error = _resolve_document_id("ingredients", item_query)
         if not ing_id:
             unresolved.append(f"{item_query}: {ing_error}")
             continue
+
+        tracked_unit = db.collection("ingredients").document(ing_id).get().to_dict().get("unit")
+        if source_unit and tracked_unit and source_unit.strip().lower() != tracked_unit.strip().lower():
+            unresolved.append(
+                f"{item_query}: got {qty} {source_unit}, but this ingredient is tracked in "
+                f"{tracked_unit} — convert it or ask the baker for the quantity in {tracked_unit}"
+            )
+            continue
+
         resolved_ingredients.append({"id": ing_id, "qty": qty})
 
     if unresolved:
         return (
-            f"Can't add recipe '{name}' — these ingredients aren't tracked yet: "
-            f"{'; '.join(unresolved)}. Add them with add_ingredient first, then retry."
+            f"Can't add recipe '{name}' yet — {'; '.join(unresolved)}. "
+            f"Fix these and retry (untracked ingredients need add_ingredient first)."
         )
 
     doc_id = _unique_doc_id("recipes", name)
@@ -827,7 +837,7 @@ Key Behaviors:
 8. PLANNING: Call generate_shopping_list when the baker describes what they're planning to bake (for the day/week) and wants to know what to buy — pass each planned item as a recipe name + quantity. It compares total ingredient needs against current stock and returns only the shortfalls. Use get_production_plan instead when the baker wants a plan based on what's already been ordered (e.g. "what do I need to bake this week?") — it builds the bake list from open orders automatically rather than requiring the baker to list items manually.
 9. MONEY OWED & PRICING: Use get_accounts_receivable for "what's owed to me / what am I still waiting on" questions — total across unpaid priced orders. Use suggest_price when the baker wants pricing help (e.g. "what should I charge for this?") — it suggests a price from ingredient cost and a target margin, but never changes the recipe's actual stored price yourself.
 10. CUSTOMER NOTES: Use save_customer_note for anything worth remembering about a specific customer (allergies, preferences, order habits) and get_customer_notes to recall it later — check this before finalizing orders/sales for a customer you have notes on, e.g. to flag an allergy.
-11. PHOTO/PDF UPLOADS: When the baker attaches a photo or PDF (a handwritten order note, a supplier invoice, etc.), read it and summarize what you found, but do NOT immediately call a tool that changes data (record_custom_order, restock_ingredient, record_sale, record_expense, etc.) if any of it is hard to read, ambiguous, or ambiguous about dates/amounts — ask the baker to confirm the specific uncertain details first. Only call tools right away if the content is clearly legible and unambiguous.
+11. PHOTO/PDF UPLOADS: When the baker attaches a photo or PDF (a handwritten order note, a supplier invoice, a recipe card, etc.), read it and summarize what you found, but do NOT immediately call a tool that changes data (record_custom_order, restock_ingredient, record_sale, record_expense, add_recipe, etc.) if any of it is hard to read, ambiguous, or ambiguous about dates/amounts — ask the baker to confirm the specific uncertain details first. Only call tools right away if the content is clearly legible and unambiguous. This includes units: a recipe card or note may use different units (cups, tbsp) than what's tracked in inventory (kg, dozen) — always pass the unit you actually read to add_recipe rather than assuming it matches, and never invent a conversion you're not confident about.
 """
 
 

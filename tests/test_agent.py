@@ -156,9 +156,26 @@ def test_add_recipe_creates_new_with_resolved_ingredients(fake_db):
 
 def test_add_recipe_blocks_on_untracked_ingredient(fake_db):
     result = agent.add_recipe("Chocolate Cake", selling_price=10.0, ingredients=[{"item": "cocoa powder", "qty": 0.2}])
-    assert "aren't tracked yet" in result
+    assert "Can't add recipe" in result
     assert "cocoa powder" in result
     assert "recipes" not in fake_db._collections or "chocolate_cake" not in fake_db.collection("recipes")._docs
+
+
+def test_add_recipe_blocks_on_unit_mismatch(fake_db):
+    # flour_001 is tracked in kg — "2 cups" must not be silently stored as qty=2 kg
+    result = agent.add_recipe(
+        "Vanilla Scones", selling_price=5.0, ingredients=[{"item": "flour", "qty": 2, "unit": "cups"}]
+    )
+    assert "Can't add recipe" in result
+    assert "cups" in result and "kg" in result
+    assert "vanilla_scones" not in fake_db.collection("recipes")._docs
+
+
+def test_add_recipe_accepts_matching_unit(fake_db):
+    result = agent.add_recipe(
+        "Vanilla Scones", selling_price=5.0, ingredients=[{"item": "flour", "qty": 0.2, "unit": "kg"}]
+    )
+    assert "Added new recipe" in result
 
 
 def test_add_recipe_blocks_duplicate(fake_db):
