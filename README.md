@@ -6,7 +6,7 @@ Most small bakers run their whole business from memory and Instagram DMs: what's
 
 **Live demo:** `https://bakery-copilot-925693519234.us-central1.run.app` — deployed on Cloud Run, but requires Google authentication to load (see [Cloud Run access note](#cloud-run-access-note) below). Run it locally (instructions below) to try it yourself, or see the demo video.
 
-**Architecture diagram:** https://claude.ai/code/artifact/442a9b43-db1d-4dd1-8fe4-e250cd9bf840
+**Architecture diagram:** `https://www.figma.com/board/KSXip1AybfGGDxAcg4MKgr/Untitled?node-id=0-1&t=IEnSZWaTnHTP8oqZ-1`
 
 ---
 
@@ -47,7 +47,7 @@ None beyond what the baker provides directly — Firestore is seeded with the ba
 
 ## Architecture
 
-See the full diagram: **https://claude.ai/code/artifact/442a9b43-db1d-4dd1-8fe4-e250cd9bf840**
+See the full diagram: **(https://www.figma.com/board/KSXip1AybfGGDxAcg4MKgr/Untitled?node-id=0-1&t=IEnSZWaTnHTP8oqZ-1)**
 
 In short: Streamlit (frontend) → `agent.py`'s persistent Gemini chat session (backend) → either Gemini 3.5 Flash decides what to do, or a tool function reads/writes Firestore. Gemini and Firestore never talk to each other directly — `agent.py` is the only thing that bridges both. Voice is transcribed via a separate one-shot Gemini call before rejoining the normal flow; the dashboard panel reads Firestore directly without going through Gemini at all.
 
