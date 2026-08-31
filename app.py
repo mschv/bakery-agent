@@ -18,6 +18,14 @@ FILE_MIME_TYPES = {
 }
 
 
+def _escape_markdown_dollars(text: str) -> str:
+    """Streamlit's markdown renderer treats a pair of $ as inline LaTeX math —
+    since money amounts naturally appear twice per line (e.g. "$5.73 profit on
+    an $8.00 price"), that mangles the text into a garbled equation instead of
+    two dollar amounts. Escaping $ as \\$ keeps it literal."""
+    return text.replace("$", "\\$")
+
+
 def build_morning_briefing(inv_data: dict) -> str:
     """Builds a proactive greeting from live inventory data instead of a fixed message."""
     expiring = inv_data.get("expiring_soon", [])
@@ -84,7 +92,7 @@ with left_col:
     with chat_container:
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+                st.markdown(_escape_markdown_dollars(message["content"]))
 
     def process_user_turn(contents, display_text):
         """Sends `contents` (a plain string, or a list of Parts for
@@ -95,7 +103,7 @@ with left_col:
         st.session_state.messages.append({"role": "user", "content": display_text})
         with chat_container:
             with st.chat_message("user"):
-                st.markdown(display_text)
+                st.markdown(_escape_markdown_dollars(display_text))
 
             with st.chat_message("assistant"):
                 with st.spinner("Processing operation tools..."):
@@ -107,7 +115,7 @@ with left_col:
                             "Sorry, I couldn't process that — there may be a connection "
                             "issue. Please try again."
                         )
-                    st.markdown(response_text)
+                    st.markdown(_escape_markdown_dollars(response_text))
 
                     st.session_state.messages.append(
                         {"role": "assistant", "content": response_text}
