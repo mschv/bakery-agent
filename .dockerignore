@@ -1,0 +1,12 @@
+key.json
+*.json.key
+.env
+venv/
+tests/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.DS_Store
+Dockerfile
+.dockerignore
