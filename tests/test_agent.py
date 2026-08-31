@@ -352,17 +352,19 @@ def test_get_activity_log_filters_by_days(fake_db):
 # ---------------------------------------------------------
 def test_financial_summary_aggregates_correctly(fake_db):
     agent.record_sale("strawberry tart", 2, 16)
-    agent.restock_ingredient("flour", 5)  # cost 6.0
+    agent.restock_ingredient("flour", 5)  # cost 6.0 — reported, but not part of total_cost
+    agent.bake_recipe("strawberry_tart", 1)  # ingredient_cost 2.27
     agent.log_inventory_usage("butter", 0.5, reason="waste")  # cost 3.25
     agent.record_expense("Boxes", 12.5)
 
     summary = agent.get_financial_summary(days=1)
     assert summary["revenue"] == 16.0
     assert summary["restock_spend"] == 6.0
+    assert summary["production_cost"] == 2.27
     assert summary["waste_cost"] == 3.25
     assert summary["other_expenses"] == 12.5
-    assert summary["total_cost"] == 21.75
-    assert summary["net"] == -5.75
+    assert summary["total_cost"] == 18.02
+    assert summary["net"] == -2.02
 
 
 def test_financial_summary_excludes_correction_reason(fake_db):

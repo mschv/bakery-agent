@@ -577,13 +577,14 @@ def get_activity_log(days: int = 7) -> list[dict]:
 
 @_handle_tool_errors
 def get_financial_summary(days: int = 7) -> dict:
-    """Summarizes money in vs. money out over the last N days (e.g. 'how did this week go?', 'give me a monthly summary'). This is a cash view: revenue = money received from record_sale events in the period; cost = restock spend + waste/gift cost (excludes manual_usage logged as a 'correction', since no ingredient was actually lost) + non-ingredient expenses in the period. It does NOT allocate ingredient cost by when it was baked (cost-of-goods-sold) — a big restock in one week counts as that week's spend even if it gets baked out over following weeks."""
+    """Summarizes money in vs. money out over the last N days (e.g. 'how did this week go?', 'give me a monthly summary'). Revenue = money received from record_sale events in the period. Cost = ingredient cost of what was actually baked (cost-of-goods-sold, from bake_recipe events) + waste/gift cost (excludes manual_usage logged as a 'correction', since no ingredient was actually lost) + non-ingredient expenses in the period. Ingredient cost is counted when it's baked, not when it's restocked — buying a big batch of flour isn't a 'cost' yet, it becomes one as it's used. restock_spend is still reported separately for reference (what you actually spent restocking this period), it's just not part of total_cost."""
     events = get_activity_log(days=days)
     if isinstance(events, str):
         return {"error": events}
 
     revenue = 0.0
     restock_spend = 0.0
+    production_cost = 0.0
     waste_cost = 0.0
     other_expenses = 0.0
     sales_count = 0
@@ -596,17 +597,20 @@ def get_financial_summary(days: int = 7) -> dict:
             sales_count += 1
         elif event_type == "restock":
             restock_spend += details.get("cost", 0.0)
+        elif event_type == "bake":
+            production_cost += details.get("ingredient_cost", 0.0)
         elif event_type == "manual_usage" and details.get("reason") != "correction":
             waste_cost += details.get("cost", 0.0)
         elif event_type == "expense":
             other_expenses += details.get("amount", 0.0)
 
-    total_cost = restock_spend + waste_cost + other_expenses
+    total_cost = production_cost + waste_cost + other_expenses
 
     return {
         "period_days": days,
         "revenue": round(revenue, 2),
         "sales_count": sales_count,
+        "production_cost": round(production_cost, 2),
         "restock_spend": round(restock_spend, 2),
         "waste_cost": round(waste_cost, 2),
         "other_expenses": round(other_expenses, 2),
